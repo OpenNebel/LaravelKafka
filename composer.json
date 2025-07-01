@@ -1,0 +1,39 @@
+{
+  "name": "opennebel/laravel-kafka",
+  "keywords": [
+    "laravel",
+    "kafka",
+    "php-rdkafka",
+    "producer"
+  ],
+  "license": "MIT",
+  "type": "library",
+  "description": "Librairie Laravel pour Kafka avec php-rdkafka",
+  "authors": [
+    {
+      "name": "Nebel",
+      "email": "nebel.mass@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "OpenNebel\\LaravelKafka\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "OpenNebel\\LaravelKafka\\KafkaServiceProvider"
+      ],
+      "aliases": {
+        "Kafka": "OpenNebel\\LaravelKafka\\Facades\\Kafka"
+      }
+    }
+  },
+  "require": {
+    "php": "^8.0",
+    "ext-rdkafka": "*"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
