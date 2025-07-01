@@ -1,8 +1,3 @@
-Voici un exemple de **`README.md` complet et professionnel** pour ta librairie Laravel Kafka (`opennebel/laravel-kafka`) :
-
----
-
-````md
 # Laravel Kafka
 
 **Laravel Kafka** est une librairie simple et fluide pour produire des messages vers Apache Kafka à partir de vos applications Laravel. Elle repose sur l’extension [php-rdkafka](https://github.com/arnaud-lb/php-rdkafka) et suit les conventions Laravel (Service Provider + Facade).
