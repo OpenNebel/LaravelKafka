@@ -27,7 +27,7 @@ composer require opennebel/laravel-kafka
 Publiez le fichier de configuration :
 
 ```bash
-php artisan vendor:publish --tag=config
+php artisan vendor:publish --tag=laravel-kafka-config
 ```
 
 Et configurez `.env` :
