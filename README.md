@@ -120,5 +120,3 @@ return [
 ## 📄 License
 
 MIT © OpenNebel
-
-```

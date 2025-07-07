@@ -2,7 +2,9 @@
 
 namespace OpenNebel\LaravelKafka;
 
+use InvalidArgumentException;
 use RdKafka\Conf;
+use RdKafka\Exception;
 use RdKafka\Producer;
 use RdKafka\Metadata;
 
@@ -23,7 +25,7 @@ class KafkaService
      * @param string $topicName The name of the Kafka topic.
      * @param string $message The message payload to be sent.
      *
-     * @throws \RuntimeException if the message cannot be flushed (sent) after several attempts.
+     * @throws \RuntimeException|Exception if the message cannot be flushed (sent) after several attempts.
      */
     public function produce(string $topicName, string $message): void
     {
@@ -45,14 +47,14 @@ class KafkaService
      * @param string $topicName The name of the Kafka topic.
      * @param array $payload The associative array to encode and send.
      *
-     * @throws \InvalidArgumentException if JSON encoding fails.
+     * @throws InvalidArgumentException|Exception if JSON encoding fails.
      */
     public function produceJson(string $topicName, array $payload): void
     {
         $json = json_encode($payload);
 
         if ($json === false || json_last_error() !== JSON_ERROR_NONE) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 'Failed to encode payload as JSON: ' . json_last_error_msg()
             );
         }
@@ -64,6 +66,7 @@ class KafkaService
      * Sends a raw message to the default topic defined in the configuration.
      *
      * @param string $message
+     * @throws Exception
      */
     public function produceToDefault(string $message): void
     {
@@ -74,6 +77,7 @@ class KafkaService
      * Sends a JSON-encoded payload to the default topic defined in the configuration.
      *
      * @param array $payload
+     * @throws Exception
      */
     public function produceJsonToDefault(array $payload): void
     {
@@ -115,6 +119,7 @@ class KafkaService
      * Retrieves metadata for the Kafka cluster.
      *
      * @return Metadata
+     * @throws Exception
      */
     public function getMetadata(): Metadata
     {
