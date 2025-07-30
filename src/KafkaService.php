@@ -3,10 +3,13 @@
 namespace OpenNebel\LaravelKafka;
 
 use InvalidArgumentException;
-use RdKafka\Conf;
+use OpenNebel\LaravelKafka\Factory\KafkaConfigFactory;
+use OpenNebel\LaravelKafka\Factory\KafkaProducerFactory;
+use OpenNebel\LaravelKafka\Jobs\ProduceKafkaMessage;
 use RdKafka\Exception;
 use RdKafka\Producer;
 use RdKafka\Metadata;
+use RuntimeException;
 
 class KafkaService
 {
@@ -14,9 +17,8 @@ class KafkaService
 
     public function __construct()
     {
-        $conf = new Conf();
-        $conf->set('metadata.broker.list', config('kafka.brokers'));
-        $this->producer = new Producer($conf);
+        $conf = KafkaConfigFactory::fromLaravelConfig();
+        $this->producer = KafkaProducerFactory::handle($conf);
     }
 
     /**
@@ -25,7 +27,7 @@ class KafkaService
      * @param string $topicName The name of the Kafka topic.
      * @param string $message The message payload to be sent.
      *
-     * @throws \RuntimeException|Exception if the message cannot be flushed (sent) after several attempts.
+     * @throws RuntimeException|Exception if the message cannot be flushed (sent) after several attempts.
      */
     public function produce(string $topicName, string $message): void
     {
@@ -38,7 +40,7 @@ class KafkaService
             if ($result === RD_KAFKA_RESP_ERR_NO_ERROR) return;
         }
 
-        throw new \RuntimeException('Unable to flush Kafka messages.');
+        throw new RuntimeException('Unable to flush Kafka messages.');
     }
 
     /**
@@ -139,5 +141,29 @@ class KafkaService
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    /**
+     * Asynchronously produces a message to a Kafka topic.
+     *
+     * @param string $topic The Kafka topic to produce to.
+     * @param string|array $payload The message payload can be a string or an array.
+     * @param bool $asJson Whether to encode the payload as JSON (default: true).
+     */
+    public function produceAsync(string $topic, string|array $payload, bool $asJson = true): void
+    {
+        ProduceKafkaMessage::dispatch($topic, $payload, $asJson)
+            ->onQueue(config('kafka.async.queue', 'default'));
+    }
+
+    /**
+     * Asynchronously produces a message to the default Kafka topic.
+     *
+     * @param string|array $payload The message payload can be a string or an array.
+     * @param bool $asJson Whether to encode the payload as JSON (default: true).
+     */
+    public function produceAsyncToDefault(string|array $payload, bool $asJson = true): void
+    {
+        $this->produceAsync(config('kafka.default_topic'), $payload, $asJson);
     }
 }

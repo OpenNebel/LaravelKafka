@@ -1,122 +1,217 @@
-# Laravel Kafka
+# LaravelKafka
 
-**Laravel Kafka** is a lightweight and expressive library to produce messages to Apache Kafka from your Laravel applications. It is built on top of [php-rdkafka](https://github.com/arnaud-lb/php-rdkafka) and follows Laravel conventions (Service Provider + Facade).
+**LaravelKafka** is a simple yet powerful library for producing messages to Apache Kafka from your Laravel applications. It builds upon [php-rdkafka](https://github.com/arnaud-lb/php-rdkafka) and adheres to Laravel conventions, including Service Providers, Facades, Queueable Jobs, Artisan commands, dependency injection, and configuration.
 
-> Maintained by [OpenNebel](https://github.com/opennebel)
+> 🔧 Maintained by [OpenNebel](https://github.com/opennebel)
 
----
+-----
+
+## 🧩 Features
+
+* ✅ **Synchronous** Kafka message sending
+* 🔁 **Asynchronous** support via Laravel's queue system
+* 🧱 Modular structure (producers, config, jobs, DLQ)
+* 🛠 Error handling (Dead Letter Queue)
+* 🧪 Integrated Artisan commands (`status`, `retry-failed`)
+* 📦 Compatible with Laravel Horizon, Telescope, Docker, CI/CD
+
+-----
 
 ## 🚀 Installation
 
-Make sure the PHP `rdkafka` extension is installed:
+### 1\. Install the PHP Kafka extension
 
 ```bash
 pecl install rdkafka
-````
+```
 
-Then install the package via Composer:
+> 📌 Ensure `php.ini` loads the extension:
+> `extension=rdkafka`
+
+### 2\. Install the library
 
 ```bash
 composer require opennebel/laravel-kafka
 ```
 
----
+-----
 
 ## ⚙️ Configuration
 
-Publish the configuration file:
+### Method 1 – Full Publication (config + migration)
 
 ```bash
-php artisan vendor:publish --tag=laravel-kafka-config
+php artisan vendor:publish --tag=laravel-kafka
 ```
 
-Add the following to your `.env`:
+### Method 2 – Separate Publication
+
+```bash
+# Only the config
+php artisan vendor:publish --tag=laravel-kafka-config
+
+# Only the DLQ migration
+php artisan vendor:publish --tag=laravel-kafka-migrations
+```
+
+### `.env` File
 
 ```env
-KAFKA_BROKERS=localhost:29092
+KAFKA_BROKERS=localhost:9092
 KAFKA_DEFAULT_TOPIC=notification-events
+
+# For asynchronous sending via Laravel Queue
+KAFKA_ASYNC_ENABLED=true
+KAFKA_ASYNC_QUEUE=default
 ```
 
----
+-----
 
-## 🧪 Usage
+## ✉️ Sending Messages
 
-### Basic usage with the Facade
+### 🔹 Synchronous Sending
 
 ```php
 use OpenNebel\LaravelKafka\Facades\Kafka;
 
-Kafka::produce('notification-events', 'Hello Kafka!');
+// Raw message
+Kafka::produce('notification-events', 'Hello Kafka');
+
+// JSON message
+Kafka::produceJson('notification-events', [
+    'type' => 'email',
+    'to' => 'user@example.com',
+    'subject' => 'Welcome',
+    'variables' => ['name' => 'John']
+]);
 ```
 
-### JSON message with structured payload
+### 🔸 Asynchronous Sending (Laravel Queue)
 
 ```php
-$data = [
-    'type' => 'email',
-    'to' => 'nebel.mass@gmail.com',
-    'subject' => 'Welcome to MondialGP',
-    'template' => 'welcome-email',
-    'variables' => [
-        'name' => 'Jean Dupont',
-        'supportEmail' => 'support@mondialgp.com'
-    ]
-];
+Kafka::produceAsync('notification-events', [
+    'type' => 'sms',
+    'to' => '+33600000000',
+    'message' => 'Your code is 1234'
+]);
 
-Kafka::produceJson('notification-events', $data);
+Kafka::produceAsyncToDefault([
+    'type' => 'sms',
+    'to' => '+33600000000',
+    'message' => 'Your code is 1234'
+]);
 ```
 
----
+> Start the worker to process jobs:
 
-## 🧩 Dependency injection (instead of Facade)
+```bash
+php artisan queue:work
+```
+
+-----
+
+## 🧩 Usage with Dependency Injection
 
 ```php
 use OpenNebel\LaravelKafka\KafkaService;
 
 public function handle(KafkaService $kafka)
 {
-    $kafka->produce('notification-events', 'Message sent via service');
+    $kafka->produceToDefault('message via DI');
 }
 ```
 
----
+-----
 
-## 🛠 Additional methods
+## 💥 Error Handling (DLQ)
 
-| Method                   | Description                                           |
-| ------------------------ | ----------------------------------------------------- |
-| `produce()`              | Send a raw message to a given topic                   |
-| `produceJson()`          | Send an array encoded as JSON to a given topic        |
-| `produceToDefault()`     | Send a raw message to the default topic (from config) |
-| `produceJsonToDefault()` | Send a JSON-encoded message to the default topic      |
-| `isConnected()`          | Returns `true` if the producer is initialized         |
-| `flush($timeoutMs)`      | Manually flush the message queue                      |
-| `getQueueLength()`       | Returns number of messages waiting in the local queue |
-| `getMetadata()`          | Returns full Kafka cluster metadata                   |
-| `ping()`                 | Returns `true` if the broker is reachable             |
+If `flush()` fails or the broker is unreachable, the message is:
 
----
+* recorded in the `kafka_failed_messages` table
+* accessible via Artisan
+* manually re-attemptable
 
-## ⚙️ Example config (`config/kafka.php`)
+### Migration:
+
+```bash
+php artisan migrate
+```
+
+### Retry Failed Messages:
+
+```bash
+php artisan kafka:retry-failed
+```
+
+-----
+
+## 🛠 Artisan Commands
+
+| Command | Description |
+| :------------------- | :---------------------------------------------------- |
+| `kafka:status` | Checks Kafka broker connectivity and displays topics |
+| `kafka:retry-failed` | Retries failed messages stored in the DLQ |
+
+These commands are **automatically registered** via the `KafkaServiceProvider`.
+
+-----
+
+## 🧰 Service API
+
+| Method | Description |
+| :---------------------------- | :--------------------------------------------- |
+| `produce($topic, $msg)` | Raw message to a given topic |
+| `produceJson($topic, $data)` | JSON-encoded array to a given topic |
+| `produceToDefault($msg)` | Raw message to the default topic |
+| `produceJsonToDefault($data)` | JSON-encoded array to the default topic |
+| `produceAsync(...)` | Adds the message to the queue (Laravel Job) |
+| `flush($timeoutMs)` | Forces messages to be sent to the broker |
+| `getQueueLength()` | Number of messages awaiting locally |
+| `ping()` | Broker connection test |
+| `getMetadata()` | Returns Kafka cluster info (brokers, topics) |
+| `isConnected()` | Indicates if the producer is initialized |
+
+-----
+
+## 📂 Configuration (`config/kafka.php`)
 
 ```php
 return [
     'brokers' => env('KAFKA_BROKERS', 'localhost:9092'),
     'default_topic' => env('KAFKA_DEFAULT_TOPIC', 'notification-events'),
+
+    'async' => [
+        'enabled' => env('KAFKA_ASYNC_ENABLED', true),
+        'queue' => env('KAFKA_ASYNC_QUEUE', 'default'),
+    ],
+
+    'options' => [
+        // Examples:
+        // 'compression.codec' => 'snappy',
+        // 'acks' => 'all',
+    ],
 ];
 ```
 
----
+-----
 
-## 📦 Requirements
+## ✅ Prerequisites
 
-* PHP >= 8.0
-* Laravel >= 9.x
-* Apache Kafka broker required (local or remote)
-* Compatible with Docker and production environments
+* PHP \>= 8.0
+* Laravel \>= 9.x
+* `rdkafka` PHP extension
+* Operational Kafka Broker (local, Docker, cloud)
 
----
+-----
+
+## 🧠 Recommendations
+
+* 🔄 Use Laravel Horizon for asynchronous job monitoring
+* 🔍 Monitor errors via Laravel Telescope or Bugsnag
+* 🚨 Enable Kafka logs (`storage/logs/laravel.log`) to inspect errors
+
+-----
 
 ## 📄 License
 
-MIT © OpenNebel
+MIT © [OpenNebel](https://github.com/opennebel)

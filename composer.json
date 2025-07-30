@@ -7,12 +7,10 @@
     "php-rdkafka",
     "producer",
     "event-streaming",
-    "opennebel"
+    "OpenNebel"
   ],
   "type": "library",
   "license": "MIT",
-  "homepage": "https://github.com/opennebel/laravel-kafka",
-  "readme": "README.md",
   "authors": [
     {
       "name": "Nebel",
@@ -21,14 +19,14 @@
     }
   ],
   "support": {
-    "issues": "https://github.com/opennebel/laravel-kafka/issues",
-    "source": "https://github.com/opennebel/laravel-kafka",
+    "issues": "https://github.com/OpenNebel/LaravelKafka/issues",
+    "source": "https://github.com/OpenNebel/LaravelKafka",
     "email": "nebel.mass@gmail.com"
   },
   "funding": [
     {
       "type": "github",
-      "url": "https://github.com/sponsors/opennebel"
+      "url": "https://github.com/sponsors/OpenNebel"
     }
   ],
   "autoload": {
