@@ -10,6 +10,7 @@ use RdKafka\Exception;
 use RdKafka\Producer;
 use RdKafka\Metadata;
 use RuntimeException;
+use Throwable;
 
 class KafkaService
 {
@@ -177,7 +178,7 @@ class KafkaService
         try {
             $this->producer->getMetadata(true, null, 1000);
             return true;
-        } catch (\Throwable $e) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -187,6 +188,11 @@ class KafkaService
      *
      * @param string $topic The Kafka topic to produce to.
      * @param string|array $payload The message payload can be a string or an array.
+     * @param array $options Optional parameters for message production:
+     *     - Key: Message key used for partitioning (optional).
+     *     - headers: Kafka headers (associative array, optional).
+     *     - partition: Partition number (default: RD_KAFKA_PARTITION_UA).
+     *     - Flag: Kafka message flag (default: 0).
      * @param bool $asJson Whether to encode the payload as JSON (default: true).
      */
     public function produceAsync(
@@ -203,6 +209,7 @@ class KafkaService
      * Asynchronously produces a message to the default Kafka topic.
      *
      * @param string|array $payload The message payload can be a string or an array.
+     * @param array $options Optional parameters for message production.
      * @param bool $asJson Whether to encode the payload as JSON (default: true).
      */
     public function produceAsyncToDefault(
