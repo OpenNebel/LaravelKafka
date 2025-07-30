@@ -20,6 +20,7 @@ class ProduceKafkaMessage implements ShouldQueue
     public function __construct(
         public string $topic,
         public array|string $payload,
+        public array $options = [],
         public bool $asJson = true
     ) {}
 
@@ -31,14 +32,15 @@ class ProduceKafkaMessage implements ShouldQueue
     {
         try {
             if ($this->asJson && is_array($this->payload)) {
-                $kafka->produceJson($this->topic, $this->payload);
+                $kafka->produceJson($this->topic, $this->payload, $this->options);
             } else {
-                $kafka->produce($this->topic, (string) $this->payload);
+                $kafka->produce($this->topic, (string)$this->payload, $this->options);
             }
         } catch (Throwable $e) {
             Log::error('Kafka Produce Failed', [
                 'topic' => $this->topic,
                 'payload' => $this->payload,
+                'options' => $this->options,
                 'error' => $e->getMessage(),
             ]);
 
@@ -46,6 +48,7 @@ class ProduceKafkaMessage implements ShouldQueue
                 'topic' => $this->topic,
                 'payload' => is_array($this->payload) ? json_encode($this->payload) : $this->payload,
                 'as_json' => $this->asJson,
+                'options' => $this->options,
                 'error_message' => $e->getMessage(),
             ]);
 

@@ -12,6 +12,7 @@ return new class extends Migration {
             $table->string('topic');
             $table->longText('payload');
             $table->boolean('as_json');
+            $table->json('options')->nullable();
             $table->text('error_message');
             $table->timestamps();
         });

@@ -10,6 +10,12 @@ class KafkaFailedMessage extends Model
         'topic',
         'payload',
         'as_json',
+        'options',
         'error_message',
+    ];
+
+    protected $casts = [
+        'options' => 'array',
+        'as_json' => 'boolean',
     ];
 }

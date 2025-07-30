@@ -51,10 +51,10 @@ return [
 
     'async' => [
         // Enables or disables Kafka asynchronous operations.
-        'enabled' => true,
+        'enabled' => env('KAFKA_ASYNC_ENABLED', true),
 
         // Name of the queue used for asynchronous operations.
-        'queue' => 'default',
+        'queue' => env('KAFKA_ASYNC_QUEUE', 'default'),
     ],
 
 ];

@@ -25,14 +25,50 @@ class KafkaService
      * Sends a raw string message to a Kafka topic.
      *
      * @param string $topicName The name of the Kafka topic.
-     * @param string $message The message payload to be sent.
+     * @param string $message The raw message payload to be sent.
+     * @param array{
+     *   key?: string|null,
+     *   headers?: array<string, string>|null,
+     *   partition?: int,
+     *   flag?: int
+     * } $options
+     * Optional parameters:
+     *     - Key: Message key used for partitioning.
+     *     - headers: Kafka headers (associative array).
+     *     - partition: Partition number (default: RD_KAFKA_PARTITION_UA).
+     *     - Flag: Kafka message flag (default: 0).
      *
-     * @throws RuntimeException|Exception if the message cannot be flushed (sent) after several attempts.
+     * @throws RuntimeException If flushing fails after multiple attempts.
+     * @throws Exception If Kafka production fails.
      */
-    public function produce(string $topicName, string $message): void
+    public function produce(
+        string $topicName,
+        string $message,
+        array  $options = []
+    ): void
     {
         $topic = $this->producer->newTopic($topicName);
-        $topic->produce(RD_KAFKA_PARTITION_UA, 0, $message);
+
+        $partition = $options['partition'] ?? RD_KAFKA_PARTITION_UA;
+        $flag = $options['flag'] ?? 0;
+        $key = $options['key'] ?? null;
+        $headers = $options['headers'] ?? null;
+
+        if ($headers !== null && !is_array($headers)) {
+            throw new InvalidArgumentException('Kafka headers must be an associative array or null.');
+        }
+        if ($key !== null && !is_string($key)) {
+            throw new InvalidArgumentException('Kafka key must be a string or null.');
+        }
+
+        $topic->producev(
+            $partition,
+            $flag,
+            $message,
+            $key,
+            $headers
+        );
+
         $this->producer->poll(0);
 
         for ($flushRetries = 0; $flushRetries < 10; $flushRetries++) {
@@ -48,10 +84,11 @@ class KafkaService
      *
      * @param string $topicName The name of the Kafka topic.
      * @param array $payload The associative array to encode and send.
+     * @param array $options Optional parameters for message production:
      *
      * @throws InvalidArgumentException|Exception if JSON encoding fails.
      */
-    public function produceJson(string $topicName, array $payload): void
+    public function produceJson(string $topicName, array $payload, array $options = []): void
     {
         $json = json_encode($payload);
 
@@ -61,29 +98,31 @@ class KafkaService
             );
         }
 
-        $this->produce($topicName, $json);
+        $this->produce($topicName, $json, $options);
     }
 
     /**
      * Sends a raw message to the default topic defined in the configuration.
      *
      * @param string $message
+     * @param array $options
      * @throws Exception
      */
-    public function produceToDefault(string $message): void
+    public function produceToDefault(string $message, array $options = []): void
     {
-        $this->produce(config('kafka.default_topic'), $message);
+        $this->produce(config('kafka.default_topic'), $message, $options);
     }
 
     /**
      * Sends a JSON-encoded payload to the default topic defined in the configuration.
      *
      * @param array $payload
+     * @param array $options
      * @throws Exception
      */
-    public function produceJsonToDefault(array $payload): void
+    public function produceJsonToDefault(array $payload, array $options = []): void
     {
-        $this->produceJson(config('kafka.default_topic'), $payload);
+        $this->produceJson(config('kafka.default_topic'), $payload, $options);
     }
 
     /**
@@ -150,9 +189,13 @@ class KafkaService
      * @param string|array $payload The message payload can be a string or an array.
      * @param bool $asJson Whether to encode the payload as JSON (default: true).
      */
-    public function produceAsync(string $topic, string|array $payload, bool $asJson = true): void
-    {
-        ProduceKafkaMessage::dispatch($topic, $payload, $asJson)
+    public function produceAsync(
+        string $topic,
+        string|array $payload,
+        array $options = [],
+        bool $asJson = true,
+    ): void {
+        ProduceKafkaMessage::dispatch($topic, $payload, $options, $asJson)
             ->onQueue(config('kafka.async.queue', 'default'));
     }
 
@@ -162,8 +205,11 @@ class KafkaService
      * @param string|array $payload The message payload can be a string or an array.
      * @param bool $asJson Whether to encode the payload as JSON (default: true).
      */
-    public function produceAsyncToDefault(string|array $payload, bool $asJson = true): void
-    {
-        $this->produceAsync(config('kafka.default_topic'), $payload, $asJson);
+    public function produceAsyncToDefault(
+        string|array $payload,
+        array $options = [],
+        bool $asJson = true,
+    ): void {
+        $this->produceAsync(config('kafka.default_topic'), $payload, $options, $asJson);
     }
 }

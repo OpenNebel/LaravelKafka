@@ -11,7 +11,8 @@
 * ✅ **Synchronous** Kafka message sending
 * 🔁 **Asynchronous** support via Laravel's queue system
 * 🧱 Modular structure (producers, config, jobs, DLQ)
-* 🛠 Error handling (Dead Letter Queue)
+* 🧠 Support for headers, keys, partitions, msgflags
+* 🛠 Error handling (Dead Letter Queue with full Kafka options)
 * 🧪 Integrated Artisan commands (`status`, `retry-failed`)
 * 📦 Compatible with Laravel Horizon, Telescope, Docker, CI/CD
 
@@ -74,8 +75,13 @@ KAFKA_ASYNC_QUEUE=default
 ```php
 use OpenNebel\LaravelKafka\Facades\Kafka;
 
-// Raw message
-Kafka::produce('notification-events', 'Hello Kafka');
+// Raw message with options
+Kafka::produce('notification-events', 'Hello Kafka', [
+    'key' => 'user:123',
+    'headers' => ['x-app' => 'mondialgp'],
+    'partition' => 0,
+    'flag' => 0
+]);
 
 // JSON message
 Kafka::produceJson('notification-events', [
@@ -93,12 +99,17 @@ Kafka::produceAsync('notification-events', [
     'type' => 'sms',
     'to' => '+33600000000',
     'message' => 'Your code is 1234'
+], [
+    'key' => 'job:456',
+    'headers' => ['x-job' => 'welcome']
 ]);
 
 Kafka::produceAsyncToDefault([
     'type' => 'sms',
     'to' => '+33600000000',
     'message' => 'Your code is 1234'
+], [
+    'key' => 'default-key'
 ]);
 ```
 
@@ -117,7 +128,9 @@ use OpenNebel\LaravelKafka\KafkaService;
 
 public function handle(KafkaService $kafka)
 {
-    $kafka->produceToDefault('message via DI');
+    $kafka->produceToDefault('message via DI', [
+        'headers' => ['x-di' => 'used']
+    ]);
 }
 ```
 
@@ -128,7 +141,8 @@ public function handle(KafkaService $kafka)
 If `flush()` fails or the broker is unreachable, the message is:
 
 * recorded in the `kafka_failed_messages` table
-* accessible via Artisan
+* all Kafka `options` are stored as JSON
+* accessible via Artisan command
 * manually re-attemptable
 
 ### Migration:
@@ -147,29 +161,30 @@ php artisan kafka:retry-failed
 
 ## 🛠 Artisan Commands
 
-| Command | Description |
-| :------------------- | :---------------------------------------------------- |
-| `kafka:status` | Checks Kafka broker connectivity and displays topics |
-| `kafka:retry-failed` | Retries failed messages stored in the DLQ |
+| Command              | Description                                         |
+|:---------------------|:----------------------------------------------------|
+| `kafka:status`       | Checks Kafka broker connectivity and lists metadata |
+| `kafka:retry-failed` | Retries messages in the DLQ                         |
 
-These commands are **automatically registered** via the `KafkaServiceProvider`.
+These commands are **auto-registered** via `KafkaServiceProvider`.
 
 -----
 
 ## 🧰 Service API
 
-| Method | Description |
-| :---------------------------- | :--------------------------------------------- |
-| `produce($topic, $msg)` | Raw message to a given topic |
-| `produceJson($topic, $data)` | JSON-encoded array to a given topic |
-| `produceToDefault($msg)` | Raw message to the default topic |
-| `produceJsonToDefault($data)` | JSON-encoded array to the default topic |
-| `produceAsync(...)` | Adds the message to the queue (Laravel Job) |
-| `flush($timeoutMs)` | Forces messages to be sent to the broker |
-| `getQueueLength()` | Number of messages awaiting locally |
-| `ping()` | Broker connection test |
-| `getMetadata()` | Returns Kafka cluster info (brokers, topics) |
-| `isConnected()` | Indicates if the producer is initialized |
+| Method                    | Description                                                      |
+|:--------------------------|:-----------------------------------------------------------------|
+| `produce()`               | Raw string to topic with optional headers/key/partition/msgflags |
+| `produceJson()`           | JSON payload to topic                                            |
+| `produceToDefault()`      | Raw string to default topic                                      |
+| `produceJsonToDefault()`  | JSON payload to default topic                                    |
+| `produceAsync()`          | Dispatch async job to a topic                                    |
+| `produceAsyncToDefault()` | Dispatch async job to default topic                              |
+| `flush($timeoutMs)`       | Flush local queue to Kafka broker                                |
+| `getQueueLength()`        | Messages in local Kafka buffer                                   |
+| `ping()`                  | Kafka connection test                                            |
+| `getMetadata()`           | Cluster info: topics, partitions, brokers                        |
+| `isConnected()`           | Indicates producer was created correctly                         |
 
 -----
 
@@ -186,9 +201,8 @@ return [
     ],
 
     'options' => [
-        // Examples:
-        // 'compression.codec' => 'snappy',
-        // 'acks' => 'all',
+        // Kafka global options (passed to php-rdkafka Producer config)
+        // e.g. 'compression.codec' => 'snappy'
     ],
 ];
 ```
@@ -197,18 +211,18 @@ return [
 
 ## ✅ Prerequisites
 
-* PHP \>= 8.0
-* Laravel \>= 9.x
-* `rdkafka` PHP extension
-* Operational Kafka Broker (local, Docker, cloud)
+* PHP >= 8.0
+* Laravel >= 9.x
+* `ext-rdkafka` PHP extension
+* Kafka broker (local, Docker, or cloud)
 
 -----
 
 ## 🧠 Recommendations
 
-* 🔄 Use Laravel Horizon for asynchronous job monitoring
-* 🔍 Monitor errors via Laravel Telescope or Bugsnag
-* 🚨 Enable Kafka logs (`storage/logs/laravel.log`) to inspect errors
+* Use Laravel Horizon to manage async jobs
+* Monitor failures with Telescope or Sentry
+* Track Kafka logs via `storage/logs/laravel.log`
 
 -----
 
